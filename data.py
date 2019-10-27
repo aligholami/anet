@@ -57,10 +57,11 @@ class ANetCaptionsDataset(Dataset):
     def __len__(self):
         return len(self.anet_subset)
 
-    def __getitem__(self, item):
+    def __getitem__(self, idx):
         pass
 
-    def read_json_file(self, path_to_file):
+    @staticmethod
+    def read_json_file(path_to_file):
         """
         Read the json file and return it as a Python dictionary.
         :param path_to_file: string path to the JSON file.
