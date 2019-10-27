@@ -40,12 +40,13 @@ class ANetCaptionsDataset(Dataset):
             init_vid_features = np.array([])
             for vid_key, vid_val in data_dict.items():
                 vid_annotations = vid_val['annotations']
+                vid_duration = vid_val['duration']
                 for annotation in vid_annotations:
                     x_label_pair = ()
                     segment_start = annotation['segment'][0]
                     segment_end = annotation['segment'][1]
                     description = annotation['sentence']
-                    x = (vid_key, init_vid_features, segment_start, segment_end)
+                    x = (vid_key, vid_duration, init_vid_features, segment_start, segment_end)
                     label = description
 
                     x_label_pairs.append((x, label))
@@ -71,11 +72,11 @@ class ANetCaptionsDataset(Dataset):
         x, label = self.anet_subset[idx]
         vid_key = x[0]
 
-        feature_path = os.path.join(self.features_root, vid_key + '_resnet.npy')
+        feature_path = os.path.join(self.features_root, vid_key + '_bn.npy')
         vid_features = np.load(feature_path)
-        x[1] = vid_features
+        new_x = (x[0], x[1], vid_features, x[2], x[3])
 
-        return x, label
+        return new_x, label
 
     @staticmethod
     def read_json_file(path_to_file):
@@ -92,4 +93,11 @@ anet_path = '../gvd-data/ActivityNet/data/anet/anet_annotations_trainval.json'
 features_path = '../gvd-data/ActivityNet/data'
 train_anet_captions = ANetCaptionsDataset(anet_path, features_path, train=True)
 validation_anet_captions = ANetCaptionsDataset(anet_path, features_path, train=False)
-print(train_anet_captions.anet_subset.__getitem__(1))
+
+print("Training size: {}, Validation Size: {}".format(len(train_anet_captions), len(validation_anet_captions)))
+for x, label in train_anet_captions:
+    print("Vid Key: {}".format(x[0]))
+    print("Vid Duration: {}".format(x[1]))
+    print("Feature Map Size: {}".format(x[2].shape))
+    print("(Start, End): ({}, {})".format(x[3], x[4]))
+    print("Description: {}".format(label))
