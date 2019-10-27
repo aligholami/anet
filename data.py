@@ -1,11 +1,14 @@
+import numpy as np
 import json
+import os
 from torch.utils.data.dataset import Dataset
 
 
 class ANetCaptionsDataset(Dataset):
-    def __init__(self, anet_json_path, train=True):
+    def __init__(self, anet_json_path, features_root, train=True):
         self.anet_contents = self.read_json_file(anet_json_path)
         self.anet_subset = {}
+        self.features_root = features_root
 
         def get_subset(content_dict, subset):
             """
@@ -18,9 +21,12 @@ class ANetCaptionsDataset(Dataset):
             if subset == 'training':
                 subset_dict = {key: value for key, value in content_dict['database'].items() if
                                value['subset'] == 'training'}
+                self.features_root = os.path.join(self.features_root, 'training')
+
             else:
                 subset_dict = {key: value for key, value in content_dict['database'].items() if
                                value['subset'] == 'validation'}
+                self.features_root = os.path.join(self.features_root, 'validation')
 
             return subset_dict
 
@@ -31,7 +37,7 @@ class ANetCaptionsDataset(Dataset):
             :return: A list of (X, LABEL) tuples.
             """
             x_label_pairs = []
-
+            init_vid_features = np.array([])
             for vid_key, vid_val in data_dict.items():
                 vid_annotations = vid_val['annotations']
                 for annotation in vid_annotations:
@@ -39,8 +45,7 @@ class ANetCaptionsDataset(Dataset):
                     segment_start = annotation['segment'][0]
                     segment_end = annotation['segment'][1]
                     description = annotation['sentence']
-
-                    x = (segment_start, segment_end)
+                    x = (vid_key, init_vid_features, segment_start, segment_end)
                     label = description
 
                     x_label_pairs.append((x, label))
@@ -58,7 +63,19 @@ class ANetCaptionsDataset(Dataset):
         return len(self.anet_subset)
 
     def __getitem__(self, idx):
-        pass
+        """
+        To be more ram efficient, we need to load the features while we need them.
+        :param idx: target sample index.
+        :return: (X, LABEL) tuple with updated feature.
+        """
+        x, label = self.anet_subset[idx]
+        vid_key = x[0]
+
+        feature_path = os.path.join(self.features_root, vid_key + '_resnet.npy')
+        vid_features = np.load(feature_path)
+        x[1] = vid_features
+
+        return x, label
 
     @staticmethod
     def read_json_file(path_to_file):
@@ -72,7 +89,7 @@ class ANetCaptionsDataset(Dataset):
 
 
 anet_path = '../gvd-data/ActivityNet/data/anet/anet_annotations_trainval.json'
-train_anet_captions = ANetCaptionsDataset(anet_path, train=True)
-validation_anet_captions = ANetCaptionsDataset(anet_path, train=False)
-print(len(train_anet_captions.anet_subset))
-print(len(validation_anet_captions.anet_subset))
+features_path = '../gvd-data/ActivityNet/data'
+train_anet_captions = ANetCaptionsDataset(anet_path, features_path, train=True)
+validation_anet_captions = ANetCaptionsDataset(anet_path, features_path, train=False)
+print(train_anet_captions.anet_subset.__getitem__(1))
