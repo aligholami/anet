@@ -24,13 +24,38 @@ class ANetCaptionsDataset(Dataset):
 
             return subset_dict
 
+        def create_x_label_pairs(data_dict):
+            """
+            Create a list of tuples. Each tuple corresponds to a sample. The format for each tuple is (X, LABEL).
+            :param data_dict: A train/validation subset of data. It is a dictionary with video ids as keys.
+            :return: A list of (X, LABEL) tuples.
+            """
+            x_label_pairs = []
+
+            for vid_key, vid_val in data_dict.items():
+                vid_annotations = vid_val['annotations']
+                for annotation in vid_annotations:
+                    x_label_pair = ()
+                    segment_start = annotation['segment'][0]
+                    segment_end = annotation['segment'][1]
+                    description = annotation['sentence']
+
+                    x = (segment_start, segment_end)
+                    label = description
+
+                    x_label_pairs.append((x, label))
+
+            return x_label_pairs
+
         if train == True:
             self.anet_subset = get_subset(self.anet_contents, 'training')
         else:
             self.anet_subset = get_subset(self.anet_contents, 'validation')
 
+        self.anet_subset = create_x_label_pairs(self.anet_subset)
+
     def __len__(self):
-        pass
+        return len(self.anet_subset)
 
     def __getitem__(self, item):
         pass
