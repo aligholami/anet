@@ -8,6 +8,10 @@ from torch.utils.data.dataset import Dataset
 class ANetCaptionsDataset(Dataset):
     def __init__(self, anet_json_path, features_root, train=True):
         self.anet_contents = self.read_json_file(anet_json_path)
+
+        # global word2idx, idx2word
+        self.word2idx, self.idx2word = self.get_word2idx_idx2word(self.anet_contents)
+
         self.anet_subset = {}
         self.features_root = features_root
         self.max_duration_vid_key = 0
@@ -99,6 +103,16 @@ class ANetCaptionsDataset(Dataset):
         new_x = (x[0], x[1], padded_vid_features, x[2], x[3])
 
         return new_x, label
+
+    @staticmethod
+    def get_word2idx_idx2word(anet_contents):
+        """
+        Designed to grab unique words and their index (along both train and validation).
+        :param anet_contents: ANetCaption dictionary.
+        :return: dictionary of format {word: idx}, {idx: word}
+        """
+        return 1, 2
+
 
     @staticmethod
     def read_json_file(path_to_file):
