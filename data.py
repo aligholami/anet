@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import json
 import os
 from torch.utils.data.dataset import Dataset
@@ -9,6 +10,8 @@ class ANetCaptionsDataset(Dataset):
         self.anet_contents = self.read_json_file(anet_json_path)
         self.anet_subset = {}
         self.features_root = features_root
+        self.max_duration_vid_key = 0
+        self.fm_post_fix = '_bn.npy'
 
         def get_subset(content_dict, subset):
             """
@@ -38,9 +41,14 @@ class ANetCaptionsDataset(Dataset):
             """
             x_label_pairs = []
             init_vid_features = np.array([])
+            max_duration = 0.0
             for vid_key, vid_val in data_dict.items():
                 vid_annotations = vid_val['annotations']
                 vid_duration = vid_val['duration']
+
+                if vid_duration > max_duration:
+                    self.max_duration_vid_key = vid_key
+
                 for annotation in vid_annotations:
                     x_label_pair = ()
                     segment_start = annotation['segment'][0]
@@ -53,12 +61,24 @@ class ANetCaptionsDataset(Dataset):
 
             return x_label_pairs
 
+        def get_fm_size(vid_key):
+            """
+            Find the feature map size for a specific video key.
+            :param vid_key: An integer, desired key.
+            :return: Video feature map size.
+            """
+            feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
+            vid_features = np.load(feature_path)
+
+            return vid_features.shape
+
         if train == True:
             self.anet_subset = get_subset(self.anet_contents, 'training')
         else:
             self.anet_subset = get_subset(self.anet_contents, 'validation')
 
         self.anet_subset = create_x_label_pairs(self.anet_subset)
+        self.max_duration_vid_fm_size = get_fm_size(self.max_duration_vid_key)
 
     def __len__(self):
         return len(self.anet_subset)
@@ -72,8 +92,9 @@ class ANetCaptionsDataset(Dataset):
         x, label = self.anet_subset[idx]
         vid_key = x[0]
 
-        feature_path = os.path.join(self.features_root, vid_key + '_bn.npy')
+        feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
         vid_features = np.load(feature_path)
+        padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
         new_x = (x[0], x[1], vid_features, x[2], x[3])
 
         return new_x, label
@@ -87,3 +108,16 @@ class ANetCaptionsDataset(Dataset):
         """
         with open(path_to_file, 'r') as fo:
             return json.load(fo)
+
+    @staticmethod
+    def zero_pad_feature_map(fm, target_shape):
+        """
+        Pads a feature map fm with zeros to reach the target shape.
+        :param fm: feature map to be padded.
+        :param target_shape: target shape.
+        :return: padded feature map.
+        """
+        padded_fm = np.zeros((1, target_shape[1], 1024))
+        padded_fm[:, fm.shape[1], :] = fm
+
+        return padded_fm
