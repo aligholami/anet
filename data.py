@@ -48,6 +48,7 @@ class ANetCaptionsDataset(Dataset):
 
                 if vid_duration > max_duration:
                     self.max_duration_vid_key = vid_key
+                    max_duration = vid_duration
 
                 for annotation in vid_annotations:
                     x_label_pair = ()
@@ -95,7 +96,7 @@ class ANetCaptionsDataset(Dataset):
         feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
         vid_features = np.load(feature_path)
         padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
-        new_x = (x[0], x[1], vid_features, x[2], x[3])
+        new_x = (x[0], x[1], padded_vid_features, x[2], x[3])
 
         return new_x, label
 
@@ -117,7 +118,7 @@ class ANetCaptionsDataset(Dataset):
         :param target_shape: target shape.
         :return: padded feature map.
         """
-        padded_fm = np.zeros((1, target_shape[1], 1024))
-        padded_fm[:, fm.shape[1], :] = fm
+        padded_fm = np.zeros((target_shape[0], 1024))
+        padded_fm[:fm.shape[0], :] = fm
 
         return padded_fm
