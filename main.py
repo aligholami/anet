@@ -16,12 +16,23 @@ def run_single_epoch(data_loader, model, optimizer, criterion):
     """
     loss = 0.0
 
-    for x, label in data_loader:
+    for x, target_description in data_loader:
         x = x[2]
-        description_length = 1
+        optimizer.zero_grad()
 
-        preds = model(x)
-        loss = criterion(preds, label)
+        target_description_length = 20
+
+        decoder_input = 0 # SOS Token ???
+
+        # Teacher forced
+        for idx in range(target_description_length):
+            pred, h = model(decoder_input)
+            loss += criterion(pred, target_description[idx])
+            decoder_input = target_description[idx] + x
+
+        # Backprop after every batch
+        loss.backward()
+        optimizer.step()
 
     return loss
 
@@ -34,7 +45,7 @@ if __name__ == '__main__':
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
     print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
 
-    train_anet_generator = data.DataLoader(train_anet)
+    train_anet_generator = data.DataLoader(train_anet, batch_size=32, num_workers=8)
     validation_anet_generator = data.DataLoader(validation_anet)
 
     num_epochs = 25
@@ -50,7 +61,7 @@ if __name__ == '__main__':
     #     epoch_summary = run_single_epoch(data_loader=train_anet, model=net, optimizer=opt, criterion=loss)
 
     for x, label in train_anet_generator:
-        print(x[2].shape)
+        print(label[0])
         # print("Vid Duration: {}".format(x[:, 1]))
         # print("Feature Map Size: {}".format(x[:, 2].shape))
         # print("(Start, End): ({}, {})".format(x[:, 3], x[:, 4]))
