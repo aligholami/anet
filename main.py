@@ -1,9 +1,12 @@
+import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils import data
 from data import ANetCaptionsDataset
 from model import DecoderLSTM
+from tqdm import tqdm
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_single_epoch(data_loader, model, optimizer, criterion):
     """
@@ -16,7 +19,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion):
     """
     loss = 0.0
 
-    for x, target_description in data_loader:
+    for x, target_description in tqdm(data_loader):
         x = x[2]
         optimizer.zero_grad()
         decoder_input = x.view(-1, x.shape[1] * x.shape[2])
@@ -24,13 +27,14 @@ def run_single_epoch(data_loader, model, optimizer, criterion):
         # Teacher forced
         for idx in range(len(target_description)):
             pred, h = model(decoder_input.float())
-            print("Prediction: {}".format(pred))
-            print("Target Description: {}".format(target_description[idx]))
+            pred = pred.view(-1, pred.shape[2])
             loss += criterion(pred, target_description[idx])
 
-        # Backprop after every batch
-        loss.backward()
-        optimizer.step()
+        torch.cuda.empty_cache()
+
+    # Backprop after every batch
+    loss.backward()
+    optimizer.step()
 
     return loss
 
@@ -59,4 +63,6 @@ if __name__ == '__main__':
     print("Vocab Size: {}".format(vocab_size))
 
     for epoch in range(num_epochs):
+        print("Started Epoch {}".format(epoch))
         epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss)
+        print("Epoch Loss: {}".format(epoch_summary))

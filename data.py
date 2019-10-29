@@ -47,7 +47,6 @@ class ANetCaptionsDataset(Dataset):
             init_vid_features = np.array([])
             max_duration = 0.0
             for vid_key, vid_val in anet_contents.items():
-                print('.')
                 vid_annotations = vid_val['annotations']
                 vid_duration = vid_val['duration']
 
@@ -104,13 +103,7 @@ class ANetCaptionsDataset(Dataset):
         padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
         new_x = (x[0], x[1], padded_vid_features, x[2], x[3])
 
-        label_one_hot = []
-        for word in label:
-            word_one_hot = np.zeros(self.one_hot_size, dtype=np.long)
-            word_one_hot[word] = 1
-            label_one_hot.append(word_one_hot)
-
-        return new_x, label_one_hot
+        return new_x, label
 
     def get_vocab_size(self):
         """
