@@ -37,7 +37,7 @@ class ANetCaptionsDataset(Dataset):
 
             return subset_dict
 
-        def create_x_label_pairs(data_dict):
+        def create_x_label_pairs(anet_contents):
             """
             Create a list of tuples. Each tuple corresponds to a sample. The format for each tuple is (X, LABEL).
             :param data_dict: A train/validation subset of data. It is a dictionary with video ids as keys.
@@ -46,7 +46,7 @@ class ANetCaptionsDataset(Dataset):
             x_label_pairs = []
             init_vid_features = np.array([])
             max_duration = 0.0
-            for vid_key, vid_val in data_dict.items():
+            for vid_key, vid_val in anet_contents.items():
                 vid_annotations = vid_val['annotations']
                 vid_duration = vid_val['duration']
 
@@ -60,7 +60,7 @@ class ANetCaptionsDataset(Dataset):
                     segment_end = annotation['segment'][1]
                     description = annotation['sentence']
                     x = (vid_key, vid_duration, init_vid_features, segment_start, segment_end)
-                    label = description
+                    label = ['<SOS>'] + [self.word2idx[word] for word in description.split(' ')] + ['<EOS>']
 
                     x_label_pairs.append((x, label))
 
@@ -111,8 +111,26 @@ class ANetCaptionsDataset(Dataset):
         :param anet_contents: ANetCaption dictionary.
         :return: dictionary of format {word: idx}, {idx: word}
         """
-        return 1, 2
 
+        def add_sos_eos_tokens(word_list):
+            return word_list + ['<SOS>'] + ['<EOS>']
+
+        all_words = []
+        anet_contents = anet_contents['database']
+        for vid_key, vid_val in anet_contents.items():
+            vid_annotations = vid_val['annotations']
+            for annotation in vid_annotations:
+
+                description = annotation['sentence']
+                description_words = description.split(' ')
+                all_words += description_words
+
+        unique_words = add_sos_eos_tokens(list(set(all_words)))
+
+        word2idx = {word: key for key, word in enumerate(unique_words)}
+        idx2word = {key: word for key, word in enumerate(unique_words)}
+
+        return word2idx, idx2word
 
     @staticmethod
     def read_json_file(path_to_file):

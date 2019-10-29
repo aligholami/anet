@@ -45,7 +45,7 @@ if __name__ == '__main__':
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
     print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
 
-    train_anet_generator = data.DataLoader(train_anet, batch_size=32, num_workers=8)
+    train_anet_generator = data.DataLoader(train_anet, batch_size=1, num_workers=8)
     validation_anet_generator = data.DataLoader(validation_anet)
 
     num_epochs = 25
@@ -61,7 +61,8 @@ if __name__ == '__main__':
     #     epoch_summary = run_single_epoch(data_loader=train_anet, model=net, optimizer=opt, criterion=loss)
 
     for x, label in train_anet_generator:
-        print(label[0])
+        print("Encoded: ", label)
+        print("Decoded: ", [train_anet.idx2word[i.item()] for i in label])
         # print("Vid Duration: {}".format(x[:, 1]))
         # print("Feature Map Size: {}".format(x[:, 2].shape))
         # print("(Start, End): ({}, {})".format(x[:, 3], x[:, 4]))
