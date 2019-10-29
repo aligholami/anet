@@ -60,7 +60,8 @@ class ANetCaptionsDataset(Dataset):
                     segment_end = annotation['segment'][1]
                     description = annotation['sentence']
                     x = (vid_key, vid_duration, init_vid_features, segment_start, segment_end)
-                    label = ['<SOS>'] + [self.word2idx[word] for word in description.split(' ')] + ['<EOS>']
+                    label = [self.word2idx[word] for word in description.strip().split()]
+                    label = [self.word2idx['<SOS>']] + label + [self.word2idx['<EOS>']]
 
                     x_label_pairs.append((x, label))
 
@@ -113,7 +114,7 @@ class ANetCaptionsDataset(Dataset):
         """
 
         def add_sos_eos_tokens(word_list):
-            return word_list + ['<SOS>'] + ['<EOS>']
+            return ['<SOS>'] + ['<EOS>'] + word_list
 
         all_words = []
         anet_contents = anet_contents['database']
@@ -122,9 +123,8 @@ class ANetCaptionsDataset(Dataset):
             for annotation in vid_annotations:
 
                 description = annotation['sentence']
-                description_words = description.split(' ')
+                description_words = description.strip().split(' ')
                 all_words += description_words
-
         unique_words = add_sos_eos_tokens(list(set(all_words)))
 
         word2idx = {word: key for key, word in enumerate(unique_words)}
