@@ -11,7 +11,7 @@ class ANetCaptionsDataset(Dataset):
 
         # global word2idx, idx2word
         self.word2idx, self.idx2word = self.get_word2idx_idx2word(self.anet_contents)
-
+        self.one_hot_size = self.get_vocab_size()
         self.anet_subset = {}
         self.features_root = features_root
         self.max_duration_vid_key = 0
@@ -47,6 +47,7 @@ class ANetCaptionsDataset(Dataset):
             init_vid_features = np.array([])
             max_duration = 0.0
             for vid_key, vid_val in anet_contents.items():
+                print('.')
                 vid_annotations = vid_val['annotations']
                 vid_duration = vid_val['duration']
 
@@ -103,7 +104,27 @@ class ANetCaptionsDataset(Dataset):
         padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
         new_x = (x[0], x[1], padded_vid_features, x[2], x[3])
 
-        return new_x, label
+        label_one_hot = []
+        for word in label:
+            word_one_hot = np.zeros(self.one_hot_size, dtype=np.long)
+            word_one_hot[word] = 1
+            label_one_hot.append(word_one_hot)
+
+        return new_x, label_one_hot
+
+    def get_vocab_size(self):
+        """
+        Vocab size getter.
+        :return: Vocab size, an integer.
+        """
+        return len(self.word2idx.keys())
+
+    def get_max_fm_size(self):
+        """
+        Feature map size getter.
+        :return: Maximum feature map size, an integer.
+        """
+        return self.max_duration_vid_fm_size[0]
 
     @staticmethod
     def get_word2idx_idx2word(anet_contents):

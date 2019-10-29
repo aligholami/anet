@@ -3,16 +3,18 @@ import torch.nn as nn
 
 
 class DecoderLSTM(nn.Module):
-    def __init__(self, visual_feature_size, wv_size, vocab_size):
+    def __init__(self, visual_feature_size, lstm_hidden_size, vocab_size):
         super().__init__()
-        self.linear_in = nn.Linear(visual_feature_size, wv_size)
-        self.lstm = nn.LSTM(wv_size, wv_size)
-        self.linear_out = nn.Linear(wv_size, vocab_size)
-        self.softmax = nn.Softmax(dim=1)
+        self.linear_in = nn.Linear(visual_feature_size, lstm_hidden_size)
+        self.lstm = nn.LSTM(lstm_hidden_size, lstm_hidden_size)
+        self.linear_out = nn.Linear(lstm_hidden_size, vocab_size)
+        self.lsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         pred = self.linear_in(x)
+        pred = pred.view(-1, 1, pred.size(1))
         pred, (h, c) = self.lstm(pred)
-        pred = self.softmax(pred)
+        pred = self.linear_out(pred)
+        pred = self.lsoftmax(pred)
 
         return pred, h
