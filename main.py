@@ -10,7 +10,7 @@ from tqdm import tqdm
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def run_single_epoch(data_loader, model, optimizer, criterion):
+def run_single_epoch(data_loader, model, optimizer, criterion, batch_size):
     """
     Run the model for a single epoch.
     :param data_loader: Customized PyTorch inherited data loader for the dataset.
@@ -24,16 +24,19 @@ def run_single_epoch(data_loader, model, optimizer, criterion):
     iteration = 0
     running_loss = 0
     total_loss = 0
+    optimizer.zero_grad()
 
     for x, target_description in data_loader:
         vf = x[2]
         optimizer.zero_grad()
         decoder_input = vf.view(-1, vf.shape[1] * vf.shape[2])
+        decoder_h = model.init_hidden()
+        decoder_c = model.init_hidden()
         x_type = 'vis'
 
         # Teacher forced decoder training
         for idx in range(len(target_description)):
-            preds, h = model(decoder_input, x_type)
+            preds, (decoder_h, decoder_c) = model(decoder_input, decoder_h, decoder_c, x_type)
             preds = preds.view(-1, preds.shape[2])
             step_loss = criterion(preds, target_description[idx])
             running_loss += step_loss
@@ -43,7 +46,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion):
 
             iteration += 1
             if iteration % show_loss_every_n_iterations == (show_loss_every_n_iterations - 1):
-                print(running_loss.item()/show_loss_every_n_iterations)
+                print("Loss at step {}: {}".format(iteration, running_loss.item()/show_loss_every_n_iterations))
                 running_loss = 0
 
     total_loss.backward()
@@ -63,12 +66,12 @@ if __name__ == '__main__':
     validation_anet_generator = data.DataLoader(validation_anet)
 
     num_epochs = 25
-    learning_rate = 0.01
+    learning_rate = 1e-10
     visual_feature_size = train_anet.get_max_fm_size() * 1024
     lstm_hidden_size = 256
     vocab_size = train_anet.get_vocab_size()
     net = DecoderLSTM(visual_feature_size, lstm_hidden_size, vocab_size)
-    opt = optim.Adam(params=net.parameters(), lr=learning_rate)
+    opt = optim.SGD(params=net.parameters(), lr=learning_rate)
     loss = nn.NLLLoss()
 
     print("Visual Feature Size: {}".format(visual_feature_size))
@@ -76,5 +79,5 @@ if __name__ == '__main__':
 
     for epoch in range(num_epochs):
         print("Started Epoch {}".format(epoch))
-        epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss)
+        epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss, batch_size=32)
         print("Epoch Loss: {}".format(epoch_summary))
