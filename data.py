@@ -103,7 +103,7 @@ class ANetCaptionsDataset(Dataset):
         try:
             vid_features = np.load(feature_path)
         except BaseException as bex:
-            print("Not Found, Skipping...")
+            # print("Not Found, Skipping...")
             vid_features = np.random.rand(100, 1024)
 
         padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
