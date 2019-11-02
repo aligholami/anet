@@ -78,7 +78,7 @@ class ANetCaptionsDataset(Dataset):
 
             return vid_features.shape
 
-        if train == True:
+        if train:
             self.anet_subset = get_subset(self.anet_contents, 'training')
         else:
             self.anet_subset = get_subset(self.anet_contents, 'validation')
@@ -99,9 +99,15 @@ class ANetCaptionsDataset(Dataset):
         vid_key = x[0]
 
         feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
-        vid_features = np.load(feature_path)
+
+        try:
+            vid_features = np.load(feature_path)
+        except BaseException as bex:
+            print("Not Found, Skipping...")
+            vid_features = np.random.rand(100, 1024)
+
         padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
-        new_x = (x[0], x[1], padded_vid_features, x[2], x[3])
+        new_x = (x[0], x[1], padded_vid_features, x[3], x[4])
 
         return new_x, label
 
@@ -135,7 +141,6 @@ class ANetCaptionsDataset(Dataset):
         for vid_key, vid_val in anet_contents.items():
             vid_annotations = vid_val['annotations']
             for annotation in vid_annotations:
-
                 description = annotation['sentence']
                 description_words = description.strip().split(' ')
                 all_words += description_words
