@@ -6,55 +6,63 @@ from torch.utils import data
 from data import ANetCaptionsDataset
 from model import DecoderLSTM
 from tqdm import tqdm
+from contextlib import ExitStack
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cuda")
 
 
-def run_single_epoch(data_loader, model, optimizer, criterion, batch_size):
+def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     """
     Run the model for a single epoch.
+    :param prefix: An string specifying the state of the function. Either training ('train') or validation ('val').
     :param data_loader: Customized PyTorch inherited data loader for the dataset.
     :param model: Model to train.
     :param optimizer: Optimization technique.
     :param criterion: Loss function to use.
     :return: Epoch summary.
     """
-    total_loss = 0.0
-    show_loss_every_n_iterations = 100
-    iteration = 0
-    running_loss = 0
-    optimizer.zero_grad()
 
-    for x, target_description in tqdm(data_loader):
-        iter_loss = 0
-        vf = x[2]
-        optimizer.zero_grad()
-        decoder_input = vf.view(-1, vf.shape[1] * vf.shape[2])
-        decoder_h = model.init_hidden()
-        decoder_c = model.init_hidden()
-        x_type = 'vis'
+    cm = None
+    if prefix == 'train':
+        model.train()
+        cm = ExitStack
+    elif prefix == 'val':
+        model.eval()
+        cm = torch.no_grad
 
-        # Teacher forced decoder training
-        for idx in range(len(target_description)):
-            predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h.to(device), decoder_c.to(device), x_type)
-            iter_loss += criterion(predictions, target_description[idx].to(device))
+    else:
+        print("Invalid prefix, aborting the process.")
 
-        running_loss += iter_loss
-        x_type = 'lan'
-        decoder_input = target_description[idx]
+    with cm():
+        total_loss = 0.0
+        iteration = 0
+        for x, target_description in tqdm(data_loader):
+            iter_loss = 0
+            vf = x[2]
+            decoder_input = vf.view(-1, vf.shape[1] * vf.shape[2])
+            decoder_h = model.init_hidden().to(device)
+            decoder_c = model.init_hidden().to(device)
+            x_type = 'vis'
+            optimizer.zero_grad()
 
-        iteration += 1
-        if iteration % show_loss_every_n_iterations == (show_loss_every_n_iterations - 1):
-            print("Loss at step {}: {}".format(iteration, running_loss.item()/show_loss_every_n_iterations))
-            running_loss = 0
+            # Teacher forced decoder training
+            for idx in range(len(target_description)):
+                predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h,
+                                                            decoder_c, x_type)
+                iter_loss += criterion(predictions, target_description[idx].to(device))
+                decoder_input = target_description[idx]
+                x_type = 'lan'
 
-        iter_loss.backward()
-        optimizer.step()
+            iteration += 1
 
-        total_loss += iter_loss
+            if prefix == 'train':
+                iter_loss.backward()
+                optimizer.step()
 
-    return total_loss/len(data_loader)
+            total_loss += iter_loss
+
+    return total_loss / len(data_loader)
 
 
 if __name__ == '__main__':
@@ -64,14 +72,14 @@ if __name__ == '__main__':
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
     # print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
 
-    train_anet_generator = data.DataLoader(train_anet, batch_size=64, num_workers=8)
-    validation_anet_generator = data.DataLoader(validation_anet)
+    train_anet_generator = data.DataLoader(train_anet, batch_size=220, num_workers=6)
+    validation_anet_generator = data.DataLoader(validation_anet, batch_size=1, num_workers=6)
 
     num_epochs = 25
     learning_rate = 1e-5
-    visual_feature_size = train_anet.get_max_fm_size() * 1024
+    visual_feature_size = train_anet.max_vid_fm_size[0] * train_anet.max_vid_fm_size[1]
     lstm_hidden_size = 50
-    vocab_size = train_anet.get_vocab_size()
+    vocab_size = train_anet.vocab_size
     net = DecoderLSTM(visual_feature_size, lstm_hidden_size, vocab_size).to(device)
     opt = optim.SGD(params=net.parameters(), lr=learning_rate)
     loss = nn.NLLLoss()
@@ -80,6 +88,10 @@ if __name__ == '__main__':
     print("Vocab Size: {}".format(vocab_size))
 
     for epoch in range(num_epochs):
-        print("Started Epoch {}".format(epoch))
-        epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss, batch_size=32)
-        print("Epoch Loss: {}".format(epoch_summary))
+        print("\n\nStarted Epoch {}".format(epoch))
+        epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss,
+                                         prefix='train')
+        print("Training Loss: {}".format(epoch_summary))
+        epoch_summary = run_single_epoch(data_loader=validation_anet_generator, model=net, optimizer=opt,
+                                         criterion=loss, prefix='val')
+        print("Validation Loss: {}".format(epoch_summary))
