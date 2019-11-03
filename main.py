@@ -72,19 +72,19 @@ if __name__ == '__main__':
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
     # print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
 
-    train_anet_generator = data.DataLoader(train_anet, batch_size=220, num_workers=6)
-    validation_anet_generator = data.DataLoader(validation_anet, batch_size=1, num_workers=6)
+    train_anet_generator = data.DataLoader(train_anet, batch_size=128, num_workers=12)
+    validation_anet_generator = data.DataLoader(validation_anet, batch_size=128, num_workers=12)
 
     num_epochs = 25
     learning_rate = 1e-5
     visual_feature_size = train_anet.max_vid_fm_size[0] * train_anet.max_vid_fm_size[1]
-    lstm_hidden_size = 50
+    lstm_hidden_size = 256
     vocab_size = train_anet.vocab_size
     net = DecoderLSTM(visual_feature_size, lstm_hidden_size, vocab_size).to(device)
     opt = optim.SGD(params=net.parameters(), lr=learning_rate)
     loss = nn.NLLLoss()
 
-    print("Visual Feature Size: {}".format(visual_feature_size))
+    print("Visual Feature Size: {}*{}={}".format(train_anet.max_vid_fm_size[0], train_anet.max_vid_fm_size[1], visual_feature_size))
     print("Vocab Size: {}".format(vocab_size))
 
     for epoch in range(num_epochs):
