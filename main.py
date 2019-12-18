@@ -72,8 +72,8 @@ if __name__ == '__main__':
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
     # print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
 
-    train_anet_generator = data.DataLoader(train_anet, batch_size=128, num_workers=12)
-    validation_anet_generator = data.DataLoader(validation_anet, batch_size=128, num_workers=12)
+    train_anet_generator = data.DataLoader(train_anet, batch_size=128, num_workers=6)
+    validation_anet_generator = data.DataLoader(validation_anet, batch_size=128, num_workers=6)
 
     num_epochs = 25
     learning_rate = 1e-5

@@ -3,7 +3,7 @@ import torch
 import json
 import os
 from torch.utils.data.dataset import Dataset
-
+from tqdm import tqdm
 
 class ANetCaptionsDataset(Dataset):
     def __init__(self, anet_json_path, features_root, train=True):
@@ -12,10 +12,13 @@ class ANetCaptionsDataset(Dataset):
         # global word2idx, idx2word
         self.word2idx, self.idx2word = self.get_word2idx_idx2word(self.anet_contents)
         self.one_hot_size = self.get_vocab_size()
-        self.anet_subset = {}
         self.features_root = features_root
-        self.max_duration_vid_key = 0
+        if train:
+            self.features_subset = 'training'
+        else:
+            self.features_subset = 'validation'
         self.fm_post_fix = '_bn.npy'
+        self.anet_subset = {}
 
         def get_subset(content_dict, subset):
             """
@@ -28,34 +31,24 @@ class ANetCaptionsDataset(Dataset):
             if subset == 'training':
                 subset_dict = {key: value for key, value in content_dict['database'].items() if
                                value['subset'] == 'training'}
-                self.features_root = os.path.join(self.features_root, 'training')
-
             else:
                 subset_dict = {key: value for key, value in content_dict['database'].items() if
                                value['subset'] == 'validation'}
-                self.features_root = os.path.join(self.features_root, 'validation')
-
             return subset_dict
 
-        def create_x_label_pairs(anet_contents):
+        def create_x_label_pairs(anet_subset):
             """
             Create a list of tuples. Each tuple corresponds to a sample. The format for each tuple is (X, LABEL).
-            :param data_dict: A train/validation subset of data. It is a dictionary with video ids as keys.
+            :param anet_subset: A train/validation subset of data. It is a dictionary with video ids as keys.
             :return: A list of (X, LABEL) tuples.
             """
             x_label_pairs = []
             init_vid_features = np.array([])
-            max_duration = 0.0
-            for vid_key, vid_val in anet_contents.items():
+            for vid_key, vid_val in anet_subset.items():
                 vid_annotations = vid_val['annotations']
                 vid_duration = vid_val['duration']
 
-                if vid_duration > max_duration:
-                    self.max_duration_vid_key = vid_key
-                    max_duration = vid_duration
-
                 for annotation in vid_annotations:
-                    x_label_pair = ()
                     segment_start = annotation['segment'][0]
                     segment_end = annotation['segment'][1]
                     description = annotation['sentence']
@@ -67,24 +60,14 @@ class ANetCaptionsDataset(Dataset):
 
             return x_label_pairs
 
-        def get_fm_size(vid_key):
-            """
-            Find the feature map size for a specific video key.
-            :param vid_key: An integer, desired key.
-            :return: Video feature map size.
-            """
-            feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
-            vid_features = np.load(feature_path)
-
-            return vid_features.shape
-
         if train:
             self.anet_subset = get_subset(self.anet_contents, 'training')
         else:
             self.anet_subset = get_subset(self.anet_contents, 'validation')
 
         self.anet_subset = create_x_label_pairs(self.anet_subset)
-        self.max_duration_vid_fm_size = get_fm_size(self.max_duration_vid_key)
+        self.max_vid_fm_size = self.get_max_fm_size()
+        self.vocab_size = self.get_vocab_size()
 
     def __len__(self):
         return len(self.anet_subset)
@@ -98,7 +81,7 @@ class ANetCaptionsDataset(Dataset):
         x, label = self.anet_subset[idx]
         vid_key = x[0]
 
-        feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
+        feature_path = os.path.join(self.features_root, self.features_subset, vid_key + self.fm_post_fix)
 
         try:
             vid_features = np.load(feature_path)
@@ -106,7 +89,7 @@ class ANetCaptionsDataset(Dataset):
             # print("Not Found, Skipping...")
             vid_features = np.random.rand(100, 1024)
 
-        padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_duration_vid_fm_size)
+        padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_vid_fm_size)
         new_x = (x[0], x[1], padded_vid_features, x[3], x[4])
 
         return new_x, label
@@ -121,9 +104,35 @@ class ANetCaptionsDataset(Dataset):
     def get_max_fm_size(self):
         """
         Feature map size getter.
-        :return: Maximum feature map size, an integer.
+        :return: Maximum feature map size along the whole dataset (train and validation) an integer.
         """
-        return self.max_duration_vid_fm_size[0]
+
+        def get_fm_size(key_subset, key):
+            """
+            Find the feature map size for a specific video key.
+            :param key_subset: Training/Validation Subset.
+            :param key: An integer, desired key.
+            :return: Video feature map size.
+            """
+            feature_path = os.path.join(self.features_root, key_subset, key + self.fm_post_fix)
+
+            try:
+                fm_shape = np.load(feature_path).shape
+            except BaseException as bex:
+                fm_shape = (1, 1024)
+
+            return fm_shape
+
+        max_vid_shape_temporal = 0  # Variable based on the temporal dimension of the each sample video
+        vid_shape_spatial = 0  # Constant for all data based on the dataset
+        print("Looking for the maximum feature map size on {} subset.".format(self.features_subset))
+        for vid_key, vid_val in tqdm(self.anet_contents['database'].items()):
+            vid_shape_temporal, vid_shape_spatial = get_fm_size(vid_val['subset'], vid_key)
+
+            if vid_shape_temporal > max_vid_shape_temporal:
+                max_vid_shape_temporal = vid_shape_temporal
+
+        return max_vid_shape_temporal, vid_shape_spatial
 
     @staticmethod
     def get_word2idx_idx2word(anet_contents):
