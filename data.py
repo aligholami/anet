@@ -115,14 +115,14 @@ class ANetCaptionsDataset(Dataset):
         :return: Maximum feature map size along the whole dataset (train and validation) an integer.
         """
 
-        def get_fm_size(key_subset, key):
+        def get_fm_size(key_subset, vid_key):
             """
             Find the feature map size for a specific video key.
             :param key_subset: Training/Validation Subset.
-            :param key: An integer, desired key.
+            :param vid_key: An integer, desired key.
             :return: Video feature map size.
             """
-            feature_path = os.path.join(self.features_root, key_subset, key + self.fm_post_fix)
+            feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
 
             try:
                 fm_shape = np.load(feature_path).shape
