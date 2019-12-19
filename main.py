@@ -70,7 +70,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
             x_type = 'vis'
             optimizer.zero_grad()
 
-            preds = {}
+            sentence_ids = []
             # Teacher forced decoder training
             for idx in range(len(target_description)):
                 predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h,
@@ -78,9 +78,19 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
                 iter_loss += criterion(predictions, target_description[idx].to(device))
                 decoder_input = target_description[idx]
                 x_type = 'lan'
+
+                # take the best word ids
+                word_ids = predictions.argmax(dim=1)
+                sentence_ids.append(word_ids)
+
                 print("Predictions: ", predictions)
                 print(f"Segments: ({x[3]}, {x[4]})")
+                print(f"keys: {x[0]}")
 
+            sentence_ids = torch.cat(sentence_ids)
+            vid_ids = x[0]
+            seg_starts = x[3]
+            seg_ends = x[4]
             iteration += 1
 
             if prefix == 'train':
