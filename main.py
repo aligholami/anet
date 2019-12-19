@@ -111,9 +111,9 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
                 word_ids = predictions.argmax(dim=1)
                 sentence_ids.append(word_ids)
 
-                print("Predictions: ", predictions)
-                print(f"Segments: ({x[3]}, {x[4]})")
-                print(f"keys: {x[0]}")
+                # print("Predictions: ", predictions)
+                # print(f"Segments: ({x[3]}, {x[4]})")
+                # print(f"keys: {x[0]}")
 
             mini_batch_results = {
                 "vid_keys": x[0],
