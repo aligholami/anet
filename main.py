@@ -52,8 +52,7 @@ def results_list_to_dict(results_list):
                     "sentence": mini_batch_result["sentence_ids"].tolist()[ix],
                     "timestamp": [mini_batch_result["seg_starts"].tolist()[ix], mini_batch_result["seg_ends"].tolist()[ix]]
             })
-            print(f"Updated key array: {key_arr}")
-            print(f"Random predicted sentence: {key_arr[ix]['sentence']}")
+
             results_dict[vid_key] = key_arr
 
     return results_dict
@@ -116,9 +115,11 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
                 # print(f"Segments: ({x[3]}, {x[4]})")
                 # print(f"keys: {x[0]}")
 
+            sentence_ids_concatenated = torch.cat(sentence_ids)
+            print("Sentence ids shape: ", sentence_ids_concatenated.shape)
             mini_batch_results = {
                 "vid_keys": x[0],
-                "sentence_ids": torch.cat(sentence_ids),
+                "sentence_ids": sentence_ids_concatenated,
                 "seg_starts": x[3],
                 "seg_ends": x[4]
             }
