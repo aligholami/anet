@@ -31,6 +31,33 @@ def create_submission_file(predictions, ix_to_word):
     }
 
 
+def results_list_to_dict(results_list):
+    """
+    Takes a list of mini batches and returns a single dictionary with video keys as keys and a list as values.
+    Each of these lists contains multiple dictionaries with "sentence" and "seg start-end" keys.
+    :param results_list: a list of mini batch results.
+    :return: A dictionary of submission format.
+    (similar to https://github.com/aligholami/densevid_eval_spice/blob/master/sample_submission.json)
+    NOTE: The sentences are not converted to words and are still ids.
+    """
+    results_dict = {}
+
+    for mini_batch_result in results_list:
+        for ix, vid_key in enumerate(mini_batch_result['vid_keys']):
+            try:
+                key_arr = results_dict[vid_key]
+            except KeyError as ke:
+                key_arr = []
+
+            key_arr.append({
+                    "sentence": mini_batch_result["sentence_ids"].tolist()[ix],
+                    "timestamp": [mini_batch_result["seg_starts"].tolist()[ix], mini_batch_result["seg_ends"].tolist()[ix]]
+            })
+            results_dict[vid_key] = key_arr
+
+    return results_dict
+
+
 def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     """
     Run the model for a single epoch.
@@ -53,7 +80,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     else:
         print("Invalid prefix, aborting the process.")
 
-    epoch_summary = {
+    summary = {
         "loss": 0,
         "results": {}
     }
@@ -61,6 +88,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     with cm():
         total_loss = 0.0
         iteration = 0
+        results = []
         for x, target_description in tqdm(data_loader):
             iter_loss = 0
             vf = x[2]
@@ -87,21 +115,29 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
                 print(f"Segments: ({x[3]}, {x[4]})")
                 print(f"keys: {x[0]}")
 
-            sentence_ids = torch.cat(sentence_ids)
-            vid_ids = x[0]
-            seg_starts = x[3]
-            seg_ends = x[4]
-            iteration += 1
+            mini_batch_results = {
+                "vid_keys": x[0],
+                "sentence_ids": torch.cat(sentence_ids),
+                "seg_starts": x[3],
+                "seg_ends": x[4]
+            }
 
+            results.append(mini_batch_results)
+
+            iteration += 1
             if prefix == 'train':
                 iter_loss.backward()
                 optimizer.step()
 
             total_loss += iter_loss
 
-    epoch_summary['loss'] = total_loss / len(data_loader)
+    # have a separate fcn to convert minibatch results to dict -> better performance (higher gpu util)
+    results = results_list_to_dict(results)
 
-    return epoch_summary
+    summary['loss'] = total_loss / len(data_loader)
+    summary['results'] = results
+
+    return summary
 
 
 if __name__ == '__main__':
