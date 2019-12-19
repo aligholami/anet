@@ -94,8 +94,8 @@ class ANetCaptionsDataset(Dataset):
             # print("Not Found, Skipping...")
             vid_features = np.random.rand(100, 1024)
 
-        print(f"Maximum feature map size: {self.max_vid_fm_size}")
-        print(f"Vid feature map size: {vid_features.shape}")
+        # print(f"Maximum feature map size: {self.max_vid_fm_size}")
+        # print(f"Vid feature map size: {vid_features.shape}")
 
         padded_vid_features = self.zero_pad_feature_map(vid_features, self.max_vid_fm_size)
         new_x = (x[0], x[1], padded_vid_features, x[3], x[4])
