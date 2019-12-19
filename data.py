@@ -5,6 +5,7 @@ import os
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 
+
 class ANetCaptionsDataset(Dataset):
     def __init__(self, anet_json_path, features_root, train=True):
         self.anet_contents = self.read_json_file(anet_json_path)
@@ -17,7 +18,7 @@ class ANetCaptionsDataset(Dataset):
             self.features_subset = 'training'
         else:
             self.features_subset = 'validation'
-        self.fm_post_fix = '_bn.npy'
+        self.fm_post_fix = '_bn.npy'  # possible options for now: _bn | _resnet
         self.anet_subset = {}
 
         def get_subset(content_dict, subset):
@@ -31,9 +32,13 @@ class ANetCaptionsDataset(Dataset):
             if subset == 'training':
                 subset_dict = {key: value for key, value in content_dict['database'].items() if
                                value['subset'] == 'training'}
-            else:
+            elif subset == 'validation':
                 subset_dict = {key: value for key, value in content_dict['database'].items() if
                                value['subset'] == 'validation'}
+            else:
+                print("Invalid data subset selected.")
+                exit(0)
+
             return subset_dict
 
         def create_x_label_pairs(anet_subset):
@@ -81,7 +86,7 @@ class ANetCaptionsDataset(Dataset):
         x, label = self.anet_subset[idx]
         vid_key = x[0]
 
-        feature_path = os.path.join(self.features_root, self.features_subset, vid_key + self.fm_post_fix)
+        feature_path = os.path.join(self.features_root, vid_key + self.fm_post_fix)
 
         try:
             vid_features = np.load(feature_path)

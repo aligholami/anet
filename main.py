@@ -34,6 +34,8 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     else:
         print("Invalid prefix, aborting the process.")
 
+    epoch_summary = {}
+
     with cm():
         total_loss = 0.0
         iteration = 0
@@ -62,7 +64,9 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
 
             total_loss += iter_loss
 
-    return total_loss / len(data_loader)
+    epoch_summary['loss'] = total_loss / len(data_loader)
+
+    return epoch_summary
 
 
 if __name__ == '__main__':
@@ -91,7 +95,7 @@ if __name__ == '__main__':
         print("\n\nStarted Epoch {}".format(epoch))
         epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss,
                                          prefix='train')
-        print("Training Loss: {}".format(epoch_summary))
+        print("Training Loss: {}".format(epoch_summary['loss']))
         epoch_summary = run_single_epoch(data_loader=validation_anet_generator, model=net, optimizer=opt,
                                          criterion=loss, prefix='val')
-        print("Validation Loss: {}".format(epoch_summary))
+        print("Validation Loss: {}".format(epoch_summary['loss']))
