@@ -12,6 +12,25 @@ from contextlib import ExitStack
 device = torch.device("cuda")
 
 
+def create_submission_file(predictions, ix_to_word):
+    """
+    Create a submission file (JSON) for evaluation purposes, given a dictionary of predictions and ix to word dictionary.
+    :param ix_to_word: dictionary containing the word index to word string mapping.
+    :param predictions: a dictionary with vid_key as keys. For each vid_key there are two elements: "sentence": string and
+    "time_segment": [start(float), end(float)].
+    :return:
+    """
+    submission_dict = {
+        "version": "VERSION 1.0",
+        "results": [],
+        "external_data": {}
+    }
+    result = {
+        "sentence": "",
+        "timestamp": []
+    }
+
+
 def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     """
     Run the model for a single epoch.
@@ -34,7 +53,10 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
     else:
         print("Invalid prefix, aborting the process.")
 
-    epoch_summary = {}
+    epoch_summary = {
+        "loss": 0,
+        "results": {}
+    }
 
     with cm():
         total_loss = 0.0
@@ -48,6 +70,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
             x_type = 'vis'
             optimizer.zero_grad()
 
+            preds = {}
             # Teacher forced decoder training
             for idx in range(len(target_description)):
                 predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h,
@@ -55,6 +78,8 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
                 iter_loss += criterion(predictions, target_description[idx].to(device))
                 decoder_input = target_description[idx]
                 x_type = 'lan'
+                print("Predictions: ", predictions)
+                print(f"Segments: ({x[3]}, {x[4]})")
 
             iteration += 1
 
@@ -88,7 +113,8 @@ if __name__ == '__main__':
     opt = optim.SGD(params=net.parameters(), lr=learning_rate)
     loss = nn.NLLLoss()
 
-    print("Visual Feature Size: {}*{}={}".format(train_anet.max_vid_fm_size[0], train_anet.max_vid_fm_size[1], visual_feature_size))
+    print("Visual Feature Size: {}*{}={}".format(train_anet.max_vid_fm_size[0], train_anet.max_vid_fm_size[1],
+                                                 visual_feature_size))
     print("Vocab Size: {}".format(vocab_size))
 
     for epoch in range(num_epochs):
