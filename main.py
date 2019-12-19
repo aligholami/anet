@@ -70,8 +70,8 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
 
 
 if __name__ == '__main__':
-    anet_path = '../gvd-data/ActivityNet/data/anet/anet_annotations_trainval.json'
-    features_path = '../gvd-data/ActivityNet/data'
+    anet_path = '/local-scratch/ActivityNet/annotations/reformatted-annotations/anet/anet_annotations_trainval.json'
+    features_path = '/local-scratch/ActivityNet/vid-frame-wise-features/rgb_motion_1d'
     train_anet = ANetCaptionsDataset(anet_path, features_path, train=True)
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
     # print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
