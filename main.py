@@ -109,13 +109,9 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
 
                 # take the best word ids
                 word_ids = predictions.argmax(dim=1)
-                sentence_ids.append(word_ids)
+                sentence_ids.append(word_ids.unsqueeze(dim=1))  # Unsqueeze()?: I want to concat on dim=1 later
 
-                # print("Predictions: ", predictions)
-                # print(f"Segments: ({x[3]}, {x[4]})")
-                # print(f"keys: {x[0]}")
-
-            sentence_ids_concatenated = torch.cat(sentence_ids)
+            sentence_ids_concatenated = torch.cat(sentence_ids, dim=1)
             print("Sentence ids shape: ", sentence_ids_concatenated.shape)
             mini_batch_results = {
                 "vid_keys": x[0],
