@@ -6,7 +6,6 @@ from data import ANetCaptionsDataset
 from data import ANetCaptionsConstants
 from model import DecoderLSTM
 from tqdm import tqdm
-from contextlib import ExitStack
 from utils import SubmissionHandler
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -55,23 +54,52 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
     :return: Epoch summary.
     """
 
-    cm = None
-    if prefix == 'train':
-        model.train()
-        cm = ExitStack
-    elif prefix == 'val':
-        model.eval()
-        cm = torch.no_grad
+    def run_train_epoch(data_loader, model, optimizer, criterion):
+        """
+        Runs an epoch for training.
+        """
+        summary = {
+            "loss": 0,
+            "results": {}
+        }
 
-    else:
-        print("Invalid prefix, aborting the process.")
+        total_loss = 0.0
+        iteration = 0
+        for x, target_description in tqdm(data_loader):
+            iter_loss = 0
+            vf = x[2]
+            batch_size = vf.size(0)
+            SOS_TENSOR = torch.empty(batch_size)
+            SOS_TENSOR[:] = torch.tensor([ANetCaptionsConstants.SOS_TOKEN_IDX])
+            decoder_input = SOS_TENSOR
+            decoder_h = model.init_hidden(batch_size, vf.to(device)).to(device)
+            decoder_c = model.init_cell(batch_size).to(device)
+            optimizer.zero_grad()
 
-    summary = {
-        "loss": 0,
-        "results": {}
-    }
+            # Teacher forced decoder training
+            for idx in range(len(target_description)):
+                predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h, decoder_c)
+                iter_loss += criterion(predictions, target_description[idx].to(device))
+                decoder_input = target_description[idx]
 
-    with cm():
+            iteration += 1
+            iter_loss.backward()
+            optimizer.step()
+            total_loss += iter_loss
+
+        summary['loss'] = total_loss / len(data_loader)
+
+        return summary
+
+    def run_val_epoch(data_loader, model, criterion):
+        """
+        Runs an epoch for validation.
+        """
+        summary = {
+            "loss": 0,
+            "results": {}
+        }
+
         total_loss = 0.0
         iteration = 0
         results = []
@@ -84,8 +112,6 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
             decoder_input = SOS_TENSOR
             decoder_h = model.init_hidden(batch_size, vf.to(device)).to(device)
             decoder_c = model.init_cell(batch_size).to(device)
-            optimizer.zero_grad()
-
             sentence_ids = []
             # Teacher forced decoder training
             for idx in range(len(target_description)):
@@ -107,17 +133,23 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
             results.append(mini_batch_results)
 
             iteration += 1
-            if prefix == 'train':
-                iter_loss.backward()
-                optimizer.step()
-
             total_loss += iter_loss
 
-    # have a separate fcn to convert mini batch results to dict -> better performance (higher gpu util)
-    results = results_list_to_dict(results, submission_handler)
+        # have a separate fcn to convert mini batch results to dict -> better performance (higher gpu util)
+        results = results_list_to_dict(results, submission_handler)
 
-    summary['loss'] = total_loss / len(data_loader)
-    summary['results'] = results
+        summary['loss'] = total_loss / len(data_loader)
+        summary['results'] = results
+
+        return summary
+
+    if prefix == 'train':
+        summary = run_train_epoch(data_loader, model, optimizer, criterion)
+    elif prefix == 'val':
+        summary = run_val_epoch(data_loader, model, criterion)
+    else:
+        print("Invalid prefix, aborting the process.")
+        exit(0)
 
     return summary
 
@@ -149,9 +181,13 @@ if __name__ == '__main__':
 
     for epoch in range(num_epochs):
         print("\n\nStarted Epoch {}".format(epoch))
-        epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss,
-                                         submission_handler=submission_handler, prefix='train')
-        print("Training Loss: {}".format(epoch_summary['loss']))
+        _ = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss,
+                             submission_handler=submission_handler, prefix='train')
         epoch_summary = run_single_epoch(data_loader=validation_anet_generator, model=net, optimizer=opt,
                                          criterion=loss, submission_handler=submission_handler, prefix='val')
+
         print("Validation Loss: {}".format(epoch_summary['loss']))
+
+        if epoch == 0:
+            SUBMIT_PATH = './submission.json'
+            submission_handler.create_submission_file(epoch_summary, SUBMIT_PATH)

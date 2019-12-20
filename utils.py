@@ -1,3 +1,5 @@
+import json
+
 class SubmissionHandler:
     def __init__(self, ix2w):
         """
@@ -24,14 +26,17 @@ class SubmissionHandler:
         "time_segment": [start(float), end(float)].
         :return: Nothing.
         """
+
         submission_dict = {
             "version": "VERSION 1.0",
-            "results": [],
+            "results": results,
             "external_data": {}
         }
-        result = {
-            "sentence": "",
-            "timestamp": []
-        }
+
+        with open(path, 'w') as fd:
+            json.dump(submission_dict, fd)
+
+        print(f"Generated submission file: {path}")
+
 
 
