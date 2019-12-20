@@ -6,6 +6,11 @@ from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 
 
+class ANetCaptionsConstants:
+    SOS_TOKEN_IDX = 0
+    EOS_TOKEN_IDX = 1
+
+
 class ANetCaptionsDataset(Dataset):
     def __init__(self, anet_json_path, features_root, train=True):
         self.anet_contents = self.read_json_file(anet_json_path)

@@ -3,6 +3,7 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils import data
 from data import ANetCaptionsDataset
+from data import ANetCaptionsConstants
 from model import DecoderLSTM
 from tqdm import tqdm
 from contextlib import ExitStack
@@ -78,6 +79,8 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
             iter_loss = 0
             vf = x[2]
             decoder_input = vf.view(-1, vf.shape[1] * vf.shape[2])
+            print(f"Current VF: {vf.shape}")
+            print(f"Current Decoder Input: {decoder_input.shape}")
             decoder_h = model.init_hidden().to(device)
             decoder_c = model.init_hidden().to(device)
             x_type = 'vis'
