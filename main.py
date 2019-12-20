@@ -6,34 +6,17 @@ from data import ANetCaptionsDataset
 from model import DecoderLSTM
 from tqdm import tqdm
 from contextlib import ExitStack
+from utils import SubmissionHandler
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cuda")
 
 
-def create_submission_file(predictions, ix_to_word):
-    """
-    Create a submission file (JSON) for evaluation purposes, given a dictionary of predictions and ix to word dictionary.
-    :param ix_to_word: dictionary containing the word index to word string mapping.
-    :param predictions: a dictionary with vid_key as keys. For each vid_key there are two elements: "sentence": string and
-    "time_segment": [start(float), end(float)].
-    :return:
-    """
-    submission_dict = {
-        "version": "VERSION 1.0",
-        "results": [],
-        "external_data": {}
-    }
-    result = {
-        "sentence": "",
-        "timestamp": []
-    }
-
-
-def results_list_to_dict(results_list):
+def results_list_to_dict(results_list, submission_handler):
     """
     Takes a list of mini batches and returns a single dictionary with video keys as keys and a list as values.
     Each of these lists contains multiple dictionaries with "sentence" and "seg start-end" keys.
+    :param submission_handler: The submission handler object. Gives access to the ix2w dictionary.
     :param results_list: a list of mini batch results.
     :return: A dictionary of submission format.
     (similar to https://github.com/aligholami/densevid_eval_spice/blob/master/sample_submission.json)
@@ -48,9 +31,11 @@ def results_list_to_dict(results_list):
             except KeyError as ke:
                 key_arr = []
 
+            sentence = submission_handler.get_words_from_indexes(mini_batch_result["sentence_ids"].tolist()[ix])
+            print(f"Predicted Description: {sentence}")
             key_arr.append({
-                    "sentence": mini_batch_result["sentence_ids"].tolist()[ix],
-                    "timestamp": [mini_batch_result["seg_starts"].tolist()[ix], mini_batch_result["seg_ends"].tolist()[ix]]
+                "sentence": sentence,
+                "timestamp": [mini_batch_result["seg_starts"].tolist()[ix], mini_batch_result["seg_ends"].tolist()[ix]]
             })
 
             results_dict[vid_key] = key_arr
@@ -58,7 +43,7 @@ def results_list_to_dict(results_list):
     return results_dict
 
 
-def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
+def run_single_epoch(data_loader, model, optimizer, criterion, submission_handler, prefix='train'):
     """
     Run the model for a single epoch.
     :param prefix: An string specifying the state of the function. Either training ('train') or validation ('val').
@@ -109,13 +94,11 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
 
                 # take the best word ids
                 word_ids = predictions.argmax(dim=1)
-                sentence_ids.append(word_ids.unsqueeze(dim=1))  # Unsqueeze()?: I want to concat on dim=1 later
+                sentence_ids.append(word_ids.unsqueeze(dim=1))  # Unsqueeze()?: Concat on dim=1 later
 
-            sentence_ids_concatenated = torch.cat(sentence_ids, dim=1)
-            print("Sentence ids shape: ", sentence_ids_concatenated.shape)
             mini_batch_results = {
                 "vid_keys": x[0],
-                "sentence_ids": sentence_ids_concatenated,
+                "sentence_ids": torch.cat(sentence_ids, dim=1),
                 "seg_starts": x[3],
                 "seg_ends": x[4]
             }
@@ -129,8 +112,8 @@ def run_single_epoch(data_loader, model, optimizer, criterion, prefix='train'):
 
             total_loss += iter_loss
 
-    # have a separate fcn to convert minibatch results to dict -> better performance (higher gpu util)
-    results = results_list_to_dict(results)
+    # have a separate fcn to convert mini batch results to dict -> better performance (higher gpu util)
+    results = results_list_to_dict(results, submission_handler)
 
     summary['loss'] = total_loss / len(data_loader)
     summary['results'] = results
@@ -143,6 +126,8 @@ if __name__ == '__main__':
     features_path = '/local-scratch/ActivityNet/vid-frame-wise-features/rgb_motion_1d'
     train_anet = ANetCaptionsDataset(anet_path, features_path, train=True)
     validation_anet = ANetCaptionsDataset(anet_path, features_path, train=False)
+    submission_handler = SubmissionHandler(train_anet.idx2word)
+
     # print("Training size: {}, Validation Size: {}".format(len(train_anet), len(validation_anet)))
 
     train_anet_generator = data.DataLoader(train_anet, batch_size=128, num_workers=6)
@@ -164,8 +149,8 @@ if __name__ == '__main__':
     for epoch in range(num_epochs):
         print("\n\nStarted Epoch {}".format(epoch))
         epoch_summary = run_single_epoch(data_loader=train_anet_generator, model=net, optimizer=opt, criterion=loss,
-                                         prefix='train')
+                                         submission_handler=submission_handler, prefix='train')
         print("Training Loss: {}".format(epoch_summary['loss']))
         epoch_summary = run_single_epoch(data_loader=validation_anet_generator, model=net, optimizer=opt,
-                                         criterion=loss, prefix='val')
+                                         criterion=loss, submission_handler=submission_handler, prefix='val')
         print("Validation Loss: {}".format(epoch_summary['loss']))
