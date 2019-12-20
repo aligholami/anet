@@ -20,6 +20,9 @@ class DecoderLSTM(nn.Module):
         x = x.view(1, -1, x.size(1))
         h = h.view(1, -1, h.size(1))
 
+        print(f"X shape: {x.shape}")
+        print(f"H shape: {h.shape}")
+        
         prediction, (h, c) = self.lstm(x, (h, c))
         prediction = prediction.view(-1, prediction.size(2))
         prediction = self.linear_out(prediction)
