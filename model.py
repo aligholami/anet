@@ -17,7 +17,7 @@ class DecoderLSTM(nn.Module):
         x = self.embedding(x.long())
         h = self.linear_in(h.float())
 
-        x = x.view(-1, 1, x.size(1))
+        x = x.view(1, -1, x.size(1))
         h = h.view(1, -1, h.size(1))
 
         prediction, (h, c) = self.lstm(x, (h, c))
