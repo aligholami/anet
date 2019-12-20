@@ -79,7 +79,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
             iter_loss = 0
             vf = x[2]
             decoder_input = torch.tensor(ANetCaptionsConstants.SOS_TOKEN_IDX)
-            decoder_h = vf.view(-1, vf.size(1) * vf.size(2))
+            decoder_h = vf.view(-1, vf.size(1) * vf.size(2)).to(device)
             decoder_c = model.init_hidden().to(device)
             optimizer.zero_grad()
 

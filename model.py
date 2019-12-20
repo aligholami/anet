@@ -20,12 +20,12 @@ class DecoderLSTM(nn.Module):
         x = x.view(-1, 1, x.size(1))
         h = h.view(1, -1, h.size(1))
 
-        pred, (h, c) = self.lstm(x, (h, c))
-        pred = pred.view(-1, pred.size(2))
-        pred = self.linear_out(pred)
-        pred = self.log_softmax(pred)
+        prediction, (h, c) = self.lstm(x, (h, c))
+        prediction = prediction.view(-1, prediction.size(2))
+        prediction = self.linear_out(prediction)
+        prediction = self.log_softmax(prediction)
 
-        return pred, (h, c)
+        return prediction, (h, c)
 
     def init_hidden(self):
         return torch.autograd.Variable(torch.zeros(1, 1, self.lstm_hidden_size), requires_grad=True)
