@@ -28,7 +28,7 @@ class DecoderLSTM(nn.Module):
         return torch.autograd.Variable(torch.zeros(1, batch_size, self.lstm_hidden_size), requires_grad=True)
 
     def init_hidden(self, batch_size, vf):
-        hidden_init_tensor = torch.autograd.Variable(torch.zeros(1, batch_size, self.visual_feature_size), requires_grad=True).to(self.device)
+        hidden_init_tensor = torch.autograd.Variable(torch.zeros(1, batch_size, self.visual_feature_size), requires_grad=True)
         hidden_init_tensor[:, :, :] = vf.view(1, batch_size, self.visual_feature_size)
-        hidden_init_tensor = self.linear_in(hidden_init_tensor)
+        hidden_init_tensor = self.linear_in(hidden_init_tensor.to(self.device))
         return hidden_init_tensor
