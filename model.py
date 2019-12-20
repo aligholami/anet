@@ -17,12 +17,15 @@ class DecoderLSTM(nn.Module):
         x = self.embedding(x.long())
         h = self.linear_in(h.float())
 
-        x = x.view(1, -1, x.size(1))
-        h = h.view(1, -1, h.size(1))
+        print(f"X shape before: {x.shape}")
+        print(f"H shape before: {h.shape}")
+
+        x = x.view(1, -1, x.size(2))    # x.size(2): embedding dim
+        h = h.view(1, -1, h.size(1))    # h.size(1): feature map size (multiplied spatials)
 
         print(f"X shape: {x.shape}")
         print(f"H shape: {h.shape}")
-        
+
         prediction, (h, c) = self.lstm(x, (h, c))
         prediction = prediction.view(-1, prediction.size(2))
         prediction = self.linear_out(prediction)
