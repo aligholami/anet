@@ -64,7 +64,7 @@ class ANetCaptionsDataset(Dataset):
                     description = annotation['sentence']
                     x = (vid_key, vid_duration, init_vid_features, segment_start, segment_end)
                     label = [self.word2idx[word] for word in description.strip().split()]
-                    label = [self.word2idx['<SOS>']] + label + [self.word2idx['<EOS>']]
+                    label = label + [self.word2idx['<EOS>']]
 
                     x_label_pairs.append((x, label))
 

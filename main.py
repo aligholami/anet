@@ -78,22 +78,17 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
         for x, target_description in tqdm(data_loader):
             iter_loss = 0
             vf = x[2]
-            decoder_input = vf.view(-1, vf.shape[1] * vf.shape[2])
-            print(f"Current VF: {vf.shape}")
-            print(f"Current Decoder Input: {decoder_input.shape}")
-            decoder_h = model.init_hidden().to(device)
+            decoder_input = torch.tensor(ANetCaptionsConstants.SOS_TOKEN_IDX)
+            decoder_h = vf.view(-1, vf.size(1) * vf.size(2))
             decoder_c = model.init_hidden().to(device)
-            x_type = 'vis'
             optimizer.zero_grad()
 
             sentence_ids = []
             # Teacher forced decoder training
             for idx in range(len(target_description)):
-                predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h,
-                                                            decoder_c, x_type)
+                predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h, decoder_c)
                 iter_loss += criterion(predictions, target_description[idx].to(device))
                 decoder_input = target_description[idx]
-                x_type = 'lan'
 
                 # take the best word ids
                 word_ids = predictions.argmax(dim=1)

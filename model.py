@@ -13,16 +13,12 @@ class DecoderLSTM(nn.Module):
         self.linear_out = nn.Linear(lstm_hidden_size, vocab_size)
         self.log_softmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, x, h, c, x_type):
-        if x_type == 'vis':
-            x = self.linear_in(x.float())
-        elif x_type == 'lan':
-            x = self.embedding(x.long())
-        else:
-            print("Invalid model input type, process aborted.")
-            exit(0)
+    def forward(self, x, h, c):
+        x = self.embedding(x.long())
+        h = self.linear_in(h.float())
 
         x = x.view(-1, 1, x.size(1))
+        h = h.view(1, -1, h.size(1))
 
         pred, (h, c) = self.lstm(x, (h, c))
         pred = pred.view(-1, pred.size(2))
