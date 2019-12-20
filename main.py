@@ -189,6 +189,6 @@ if __name__ == '__main__':
 
         print("Validation Loss: {}".format(epoch_summary['loss']))
 
-        if epoch == 0:
+        if epoch == 23:
             SUBMIT_PATH = './submission.json'
             submission_handler.create_submission_file(epoch_summary, SUBMIT_PATH)
