@@ -78,7 +78,9 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
         for x, target_description in tqdm(data_loader):
             iter_loss = 0
             vf = x[2]
-            decoder_input = torch.tensor(ANetCaptionsConstants.SOS_TOKEN_IDX)
+            SOS_TENSOR = torch.empty((vf.size(0), 1))
+            SOS_TENSOR[:] = torch.tensor(ANetCaptionsConstants.SOS_TOKEN_IDX)
+            decoder_input = SOS_TENSOR.to(device)
             decoder_h = vf.view(-1, vf.size(1) * vf.size(2)).to(device)
             decoder_c = model.init_hidden().to(device)
             optimizer.zero_grad()
@@ -86,7 +88,7 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
             sentence_ids = []
             # Teacher forced decoder training
             for idx in range(len(target_description)):
-                predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h, decoder_c)
+                predictions, (decoder_h, decoder_c) = model(decoder_input, decoder_h, decoder_c)
                 iter_loss += criterion(predictions, target_description[idx].to(device))
                 decoder_input = target_description[idx]
 
