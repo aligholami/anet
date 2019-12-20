@@ -139,7 +139,7 @@ if __name__ == '__main__':
     visual_feature_size = train_anet.max_vid_fm_size[0] * train_anet.max_vid_fm_size[1]
     lstm_hidden_size = 256
     vocab_size = train_anet.vocab_size
-    net = DecoderLSTM(visual_feature_size, lstm_hidden_size, vocab_size).to(device)
+    net = DecoderLSTM(visual_feature_size, lstm_hidden_size, vocab_size, device).to(device)
     opt = optim.SGD(params=net.parameters(), lr=learning_rate)
     loss = nn.NLLLoss()
 

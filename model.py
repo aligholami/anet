@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
 
 class DecoderLSTM(nn.Module):
-    def __init__(self, visual_feature_size, lstm_hidden_size, vocab_size):
+    def __init__(self, visual_feature_size, lstm_hidden_size, vocab_size, device):
         super().__init__()
+        self.device = device
         self.lstm_hidden_size = lstm_hidden_size
         self.visual_feature_size = visual_feature_size
         self.linear_in = nn.Linear(visual_feature_size, lstm_hidden_size)
@@ -29,7 +28,7 @@ class DecoderLSTM(nn.Module):
         return torch.autograd.Variable(torch.zeros(1, batch_size, self.lstm_hidden_size), requires_grad=True)
 
     def init_hidden(self, batch_size, vf):
-        hidden_init_tensor = torch.autograd.Variable(torch.zeros(1, batch_size, self.visual_feature_size), requires_grad=True)
+        hidden_init_tensor = torch.autograd.Variable(torch.zeros(1, batch_size, self.visual_feature_size), requires_grad=True).to(self.device)
         hidden_init_tensor[:, :, :] = vf.view(1, batch_size, self.visual_feature_size)
         hidden_init_tensor = self.linear_in(hidden_init_tensor)
         return hidden_init_tensor
