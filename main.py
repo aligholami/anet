@@ -31,7 +31,7 @@ def results_list_to_dict(results_list, submission_handler):
             except KeyError as ke:
                 key_arr = []
 
-            sentence = submission_handler.get_words_from_indexes(mini_batch_result["sentence_ids"].tolist()[ix])
+            sentence = ' '.join(submission_handler.get_words_from_indexes(mini_batch_result["sentence_ids"].tolist()[ix]))
             print(f"Predicted Description: {sentence}")
             key_arr.append({
                 "sentence": sentence,
