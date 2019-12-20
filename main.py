@@ -95,51 +95,52 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
         """
         Runs an epoch for validation.
         """
-        summary = {
-            "loss": 0,
-            "results": {}
-        }
+        with torch.no_grad():
+            summary = {
 
-        total_loss = 0.0
-        iteration = 0
-        results = []
-        for x, target_description in tqdm(data_loader):
-            iter_loss = 0
-            vf = x[2]
-            batch_size = vf.size(0)
-            SOS_TENSOR = torch.empty(batch_size)
-            SOS_TENSOR[:] = torch.tensor([ANetCaptionsConstants.SOS_TOKEN_IDX])
-            decoder_input = SOS_TENSOR
-            decoder_h = model.init_hidden(batch_size, vf.to(device)).to(device)
-            decoder_c = model.init_cell(batch_size).to(device)
-            sentence_ids = []
-            # Teacher forced decoder training
-            for idx in range(len(target_description)):
-                predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h, decoder_c)
-                iter_loss += criterion(predictions, target_description[idx].to(device))
-                decoder_input = target_description[idx]
-
-                # take the best word ids
-                word_ids = predictions.argmax(dim=1)
-                sentence_ids.append(word_ids.unsqueeze(dim=1))  # Unsqueeze()?: Concat on dim=1 later
-
-            mini_batch_results = {
-                "vid_keys": x[0],
-                "sentence_ids": torch.cat(sentence_ids, dim=1),
-                "seg_starts": x[3],
-                "seg_ends": x[4]
+                "loss": 0,
+                "results": {}
             }
+            total_loss = 0.0
+            iteration = 0
+            results = []
+            for x, target_description in tqdm(data_loader):
+                iter_loss = 0
+                vf = x[2]
+                batch_size = vf.size(0)
+                SOS_TENSOR = torch.empty(batch_size)
+                SOS_TENSOR[:] = torch.tensor([ANetCaptionsConstants.SOS_TOKEN_IDX])
+                decoder_input = SOS_TENSOR
+                decoder_h = model.init_hidden(batch_size, vf.to(device)).to(device)
+                decoder_c = model.init_cell(batch_size).to(device)
+                sentence_ids = []
+                # Teacher forced decoder training
+                for idx in range(len(target_description)):
+                    predictions, (decoder_h, decoder_c) = model(decoder_input.to(device), decoder_h, decoder_c)
+                    iter_loss += criterion(predictions, target_description[idx].to(device))
+                    decoder_input = target_description[idx]
 
-            results.append(mini_batch_results)
+                    # take the best word ids
+                    word_ids = predictions.argmax(dim=1)
+                    sentence_ids.append(word_ids.unsqueeze(dim=1))  # Unsqueeze()?: Concat on dim=1 later
 
-            iteration += 1
-            total_loss += iter_loss
+                mini_batch_results = {
+                    "vid_keys": x[0],
+                    "sentence_ids": torch.cat(sentence_ids, dim=1),
+                    "seg_starts": x[3],
+                    "seg_ends": x[4]
+                }
 
-        # have a separate fcn to convert mini batch results to dict -> better performance (higher gpu util)
-        results = results_list_to_dict(results, submission_handler)
+                results.append(mini_batch_results)
 
-        summary['loss'] = total_loss / len(data_loader)
-        summary['results'] = results
+                iteration += 1
+                total_loss += iter_loss
+
+            # have a separate fcn to convert mini batch results to dict -> better performance (higher gpu util)
+            results = results_list_to_dict(results, submission_handler)
+
+            summary['loss'] = total_loss / len(data_loader)
+            summary['results'] = results
 
         return summary
 
