@@ -19,13 +19,16 @@ class SubmissionHandler:
 
         return word_list
 
-    def create_submission_file(self, results, path):
+    def create_submission_file(self, summary, path):
         """
         Create a submission file (JSON) for evaluation purposes, given a dictionary of predictions and ix to word dictionary.
-        :param results: a dictionary with vid_key as keys. For each vid_key there are two elements: "sentence": string and
+        :param summary: a dictionary containing the results summary. has a key named "results" with vid_key as keys. For each vid_key there are two elements: "sentence": string and
+
         "time_segment": [start(float), end(float)].
         :return: Nothing.
         """
+
+        results = summary['results']
 
         submission_dict = {
             "version": "VERSION 1.0",
