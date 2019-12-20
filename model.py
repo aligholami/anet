@@ -33,5 +33,5 @@ class DecoderLSTM(nn.Module):
 
         return prediction, (h, c)
 
-    def init_hidden(self):
-        return torch.autograd.Variable(torch.zeros(1, 1, self.lstm_hidden_size), requires_grad=True)
+    def init_hidden(self, batch_size):
+        return torch.autograd.Variable(torch.zeros(1, batch_size, self.lstm_hidden_size), requires_grad=True)

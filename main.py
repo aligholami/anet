@@ -78,11 +78,12 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
         for x, target_description in tqdm(data_loader):
             iter_loss = 0
             vf = x[2]
-            SOS_TENSOR = torch.empty((vf.size(0), 1))
+            batch_size = vf.size(0)
+            SOS_TENSOR = torch.empty((batch_size, 1))
             SOS_TENSOR[:] = torch.tensor(ANetCaptionsConstants.SOS_TOKEN_IDX)
             decoder_input = SOS_TENSOR.to(device)
             decoder_h = vf.view(-1, vf.size(1) * vf.size(2)).to(device)
-            decoder_c = model.init_hidden().to(device)
+            decoder_c = model.init_hidden(batch_size).to(device)
             optimizer.zero_grad()
 
             sentence_ids = []
