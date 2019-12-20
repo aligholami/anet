@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class DecoderLSTM(nn.Module):
@@ -15,7 +16,6 @@ class DecoderLSTM(nn.Module):
 
     def forward(self, x, h, c):
         x = self.embedding(x.long())
-        h = self.linear_in(h.float())
         x = x.view(1, -1, x.size(2))    # x.size(2): embedding dim
         h = h.view(1, -1, h.size(1))    # h.size(1): feature map size (multiplied spatials)
         prediction, (h, c) = self.lstm(x, (h, c))
@@ -25,5 +25,11 @@ class DecoderLSTM(nn.Module):
 
         return prediction, (h, c)
 
-    def init_hidden(self, batch_size):
+    def init_cell(self, batch_size):
         return torch.autograd.Variable(torch.zeros(1, batch_size, self.lstm_hidden_size), requires_grad=True)
+
+    def init_hidden(self, batch_size, vf):
+        hidden_init_tensor = torch.autograd.Variable(torch.zeros(1, batch_size, self.visual_feature_size), requires_grad=True)
+        hidden_init_tensor[:, :, :] = vf.view(1, batch_size, self.visual_feature_size)
+        hidden_init_tensor = self.linear_in(hidden_init_tensor)
+        return hidden_init_tensor

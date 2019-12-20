@@ -82,8 +82,8 @@ def run_single_epoch(data_loader, model, optimizer, criterion, submission_handle
             SOS_TENSOR = torch.empty((batch_size, 1))
             SOS_TENSOR[:] = torch.tensor(ANetCaptionsConstants.SOS_TOKEN_IDX)
             decoder_input = SOS_TENSOR
-            decoder_h = vf.view(-1, vf.size(1) * vf.size(2)).to(device)
-            decoder_c = model.init_hidden(batch_size).to(device)
+            decoder_h = model.init_hidden(batch_size, vf).to(device)
+            decoder_c = model.init_cell(batch_size).to(device)
             optimizer.zero_grad()
 
             sentence_ids = []
